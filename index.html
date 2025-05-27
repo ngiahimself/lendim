@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>LewNdim Memory Challenge Game</title>
+  <title>Lewis Ndimufor Memory Challenge Game</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -61,7 +61,181 @@
   </style>
 </head>
 <body>
-  <!-- Game HTML content here -->
-  <!-- The full code was already reviewed and is re-used from the canvas -->
+  <h1>LewNdim Memory Challenge Game</h1>
+  <div id="number-display">Click Start to Begin</div>
+  <div id="timer"></div>
+  <div id="progress">Digit Level: <span id="digit-level-display">1</span> <span id="star-rating"></span></div>
+  <div id="emoji-face"></div>
+  <div id="input-section" style="display:none;">
+    <input type="text" id="user-input" placeholder="Enter the number" />
+    <br />
+    <button onclick="checkInput()">Submit</button>
+  </div>
+  <button id="start-button" onclick="startGame()">Retry</button>
+  <div id="score-popup">+100</div>
+  <div id="status"></div>
+  <div id="leaderboard">
+    <h3>Leaderboard</h3>
+    <ol id="high-scores"></ol>
+  </div>
+
+  <audio id="correct-sound" src="https://www.soundjay.com/buttons/sounds/button-4.mp3" preload="auto"></audio>
+  <audio id="fail-sound" src="https://www.soundjay.com/button/beep-10.mp3" preload="auto"></audio>
+
+  <script>
+    let currentLevel = 1;
+    let currentNumber = '';
+    let digitLevel = 1;
+    let timer;
+    let timeLeft;
+    let highScores = [];
+    let capturedInput = '';
+    let score = 0;
+    let comboStreak = 0;
+    let repeatCounter = 0;
+
+    function generateNumber(length) {
+      let num = '';
+      for (let i = 0; i < length; i++) {
+        num += Math.floor(Math.random() * 10);
+      }
+      return num;
+    }
+
+    function updateTimer() {
+      document.getElementById('timer').textContent = `Time left: ${timeLeft}s`;
+      if (timeLeft <= 0) {
+        capturedInput = document.getElementById('user-input').value.trim();
+        checkInput(true);
+      } else {
+        timeLeft--;
+        timer = setTimeout(updateTimer, 1000);
+      }
+    }
+
+    function displayNumber() {
+      document.getElementById('start-button').style.display = 'none';
+      document.getElementById('emoji-face').textContent = '';
+      document.getElementById('digit-level-display').textContent = digitLevel;
+      updateStars();
+      currentNumber = generateNumber(digitLevel);
+      document.getElementById('number-display').textContent = currentNumber;
+      document.getElementById('input-section').style.display = 'none';
+      document.getElementById('timer').textContent = '';
+
+      setTimeout(() => {
+        document.getElementById('number-display').textContent = 'Now enter the number';
+        document.getElementById('user-input').value = '';
+        document.getElementById('input-section').style.display = 'block';
+        document.getElementById('user-input').focus();
+        timeLeft = Math.min(5 + (digitLevel - 1) * 2, 15);
+        updateTimer();
+      }, 1000 + digitLevel * 500);
+    }
+
+    function startGame() {
+      document.getElementById('user-input').addEventListener('keypress', function(event) {
+        if (event.key === 'Enter') {
+          checkInput();
+        }
+      });
+      // Do not reset digitLevel to 1
+      score = 0;
+      repeatCounter = 0;
+      comboStreak = 0;
+      document.getElementById('status').textContent = `Score: ${score}`;
+      document.getElementById('emoji-face').textContent = '';
+      displayNumber();
+    }
+
+    function checkInput(fromTimer = false) {
+      clearTimeout(timer);
+      const input = fromTimer ? capturedInput : document.getElementById('user-input').value.trim();
+      if (input === currentNumber) {
+        playCorrectSound();
+        document.getElementById('emoji-face').textContent = '😊';
+        score += digitLevel * 100;
+        document.getElementById('status').textContent = `Score: ${score}`;
+        comboStreak++;
+        if (comboStreak > 0 && comboStreak % 3 === 0) {
+          score += 150;
+          document.getElementById('status').textContent = `Score: ${score}`;
+          showScorePopup('🔥 Combo! +150');
+        }
+        showScorePopup(`+${digitLevel * 100}`);
+        repeatCounter++;
+        document.getElementById('digit-level-display').textContent = digitLevel;
+        updateStars();
+        if (repeatCounter >= digitLevel) {
+          digitLevel++;
+          repeatCounter = 0;
+          document.getElementById('digit-level-display').textContent = digitLevel;
+          updateStars();
+        }
+        document.getElementById('user-input').disabled = true;
+        setTimeout(() => {
+          document.getElementById('user-input').disabled = false;
+          displayNumber();
+        }, 500);
+      } else {
+        playFailSound();
+        document.getElementById('emoji-face').textContent = '😢';
+        comboStreak = 0;
+        gameOver('Incorrect.');
+      }
+    }
+
+    function gameOver(reason) {
+      const previousLevel = digitLevel > 1 ? digitLevel - 1 : 1;
+      document.getElementById('start-button').style.display = 'inline-block';
+      document.getElementById('status').textContent = `${reason} Try again at level ${previousLevel}. Your score was ${score}.`;
+      digitLevel = previousLevel;
+      repeatCounter = 0;
+      document.getElementById('digit-level-display').textContent = digitLevel;
+      updateStars();
+      document.getElementById('number-display').textContent = 'Click Retry to Continue';
+      document.getElementById('input-section').style.display = 'none';
+      document.getElementById('timer').textContent = '';
+      updateLeaderboard(score);
+    }
+
+    function playCorrectSound() {
+      document.getElementById('correct-sound').play();
+    }
+
+    function playFailSound() {
+      document.getElementById('fail-sound').play();
+    }
+
+    function showScorePopup(points) {
+      const popup = document.getElementById('score-popup');
+      popup.textContent = points;
+      popup.style.opacity = '1';
+      popup.style.transform = 'translateX(-50%) translateY(-20px)';
+      setTimeout(() => {
+        popup.style.opacity = '0';
+        popup.style.transform = 'translateX(-50%) translateY(0px)';
+      }, 800);
+    }
+
+    function updateStars() {
+      const starContainer = document.getElementById('star-rating');
+      starContainer.innerHTML = '⭐'.repeat(digitLevel);
+    }
+
+    function updateLeaderboard(score) {
+      highScores.push({ level: digitLevel, score });
+      highScores.sort((a, b) => b.score - a.score);
+      highScores = highScores.slice(0, 5);
+      const list = document.getElementById('high-scores');
+      list.innerHTML = '';
+      highScores.forEach((entry, i) => {
+        const li = document.createElement('li');
+        const color = entry.level >= 5 ? 'orange' : entry.level >= 3 ? 'blue' : 'black';
+        li.innerHTML = `<span style='color:${color};'>Level ${entry.level} - ${entry.score} pts</span>`;
+        list.appendChild(li);
+      });
+    }
+  </script>
 </body>
 </html>
